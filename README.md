@@ -68,6 +68,11 @@ To get started with the Decentralized Poker Client, follow these steps:
     npx hardhat test
     ```
 
+## Legal Disclaimer
+This software is intended for educational and experimentation purposes only. The use of this software to facilitate real money gambling may be illegal in your jurisdiction. You are solely responsible for ensuring that your use of this software complies with all applicable local, national, and international laws.
+
+Online gambling is heavily regulated or banned in many jurisdictions. You must check with your local legislation before using this software. This software is provided "as is", without warranty of any kind, express or implied. The developers and contributors of this software shall not be held liable for any damages arising from the use of this software. This software is not fit for production use. It is intended solely for research and educational purposes.By using this software, you acknowledge and agree that you are responsible for complying with all applicable laws and regulations. The contributors to this open source software disclaim all liability for any use of this software in violation of regional law or regulation around the world.
+
 ## Links
 
 For more information, tutorials, and updates, check out the following links:
