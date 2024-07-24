@@ -13,13 +13,24 @@ This contract is responsible for comparing poker hands to determine the winner. 
 
 #### `contracts/PokerChips.sol`
 
-This contract implements an ERC20 token named "PokerChips" used in the game. Players use PokerChips to place bets, and winnings are paid out in PokerChips.
+This contract implements an ERC20 token named "PokerChips" used in the game. Players use PokerChips to place bets, and winnings are paid out in PokerChips. It accepts 1:1 deposits in USDC and mints new tokens. Users can withdraw back to USDC by calling the withdraw function. Note both the PokerChips token and USDC have 6 decimals.
 
-#### `contracts/Dealer.sol` (2do)
+#### `contracts/PokerDealer.sol` (2do)
 
-The Dealer contract handles the generation of private card dealing using Zero Knowledge Proofs. The cards are dealt in a way that is verifiable on-chain, ensuring fairness. At the end of the game, all players reveal their keys to decode their hands, allowing all parties to see the cards.
+The Dealer contract handles the generation of random, private card distribution. The cards are dealt in a way that needs to be verifiable on-chain, ensuring fairness. At the end of the game, all players reveal their keys to decode their hands, allowing all parties to see the cards.
 
-#### `contracts/GameLogic.sol` (2do)
+Every user needs to hold private information, their hole cards which are numerical values. These then need to be revealed at the end of the hand to all parties. The hole cards must be delivered randomly from a "deck" and must not match other users hole cards. Computation can not be done via shared computer as this would reveal the hole cards to all parties as soon as they are dealt.
+
+Solution 1:
+One way to do this is with a 3rd party or oracle acting as the dealer. They are responsible for shuffling and dealing the cards. A private key is shared via the UI and is used to encrypt the hole cards when they are dealt to each user. At the end of the game each users hole cards are decrypted and revealed. This however relies on a trusted 3rd party which doesn't improve significantly on existing web2 poker apps.
+
+Solution 2:
+Each player generates a private key and signs a message agreeing to a future block number from which a unique ID using the block hash is generated, this is distributed to all players. All players must combine their private key with the block hash to generate randomness which can be used to shuffle the deck and distribute two cards. At the end of the hand each users private key is shared and verified that it a) signed the initial agreement & b) matches the hole cards when combined with the agreement. The downside of this solution is that two players could have the same hole cards.
+
+Solution 3:
+Open to suggestions?
+
+#### `contracts/PokerGame.sol` (2do)
 
 This contract contains the core logic for the poker game, including the betting rounds and dealing of the community cards (flop, turn, river). It manages the flow of the game and ensures that all rules are followed correctly.
 
