@@ -28,7 +28,7 @@ contract PokerHandEvaluator {
                 if (eval1.orderedValues[i] > eval2.orderedValues[i]) {
                     return 1; // Hand 1 wins
                 } else if (eval1.orderedValues[i] < eval2.orderedValues[i]) {
-                    return -1; // Hand 2 wins
+                    return 2; // Hand 2 wins
                 }
             }
             return 0; // Tie
@@ -151,6 +151,18 @@ contract PokerHandEvaluator {
         return (HandRank.HighCard, getOrderedValues(hand));
     }
 
+    function sortDescending(uint8[5] memory arr) private pure {
+        for (uint8 i = 0; i < 4; i++) {
+            for (uint8 j = 0; j < 4 - i; j++) {
+                if (arr[j] < arr[j + 1]) {
+                    uint8 temp = arr[j];
+                    arr[j] = arr[j + 1];
+                    arr[j + 1] = temp;
+                }
+            }
+        }
+    }
+
     function getOrderedValues(Card[5] memory hand) private pure returns (uint8[5] memory) {
         uint8[5] memory values;
         for (uint8 i = 0; i < 5; i++) {
@@ -169,16 +181,6 @@ contract PokerHandEvaluator {
             if (value == 0) break; // Prevent underflow
         }
         return orderedValues;
-    }
-
-    function sortDescending(uint8[5] memory arr) private pure {
-        for (uint8 i = 0; i < 4; i++) {
-            for (uint8 j = 0; j < 4 - i; j++) {
-                if (arr[j] < arr[j + 1]) {
-                    (arr[j], arr[j + 1]) = (arr[j + 1], arr[j]);
-                }
-            }
-        }
     }
 
     function compareHandEvaluations(HandEvaluation memory eval1, HandEvaluation memory eval2) private pure returns (int8) {
