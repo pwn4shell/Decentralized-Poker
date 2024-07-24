@@ -17,7 +17,7 @@ This contract implements an ERC20 token named "PokerChips" used in the game. Pla
 
 #### `contracts/PokerDealer.sol` (2do)
 
-The Dealer contract handles the generation of random, private card distribution. The cards are dealt in a way that needs to be verifiable on-chain, ensuring fairness. At the end of the game, all players reveal their keys to decode their hands, allowing all parties to see the cards.
+The Poker Dealer contract/system handles the generation of random, private card distribution. The cards are dealt in a way that needs to be verifiable on-chain, ensuring fairness. At the end of the game, all players reveal their keys to decode their hands, allowing all parties to see the cards.
 
 Every user needs to hold private information, their hole cards which are numerical values. These then need to be revealed at the end of the hand to all parties. The hole cards must be delivered randomly from a "deck" and must not match other users hole cards. Computation can not be done via shared computer as this would reveal the hole cards to all parties as soon as they are dealt.
 
