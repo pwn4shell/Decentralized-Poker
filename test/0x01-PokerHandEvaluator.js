@@ -10,10 +10,16 @@ describe("PokerHandEvaluator", function () {
     pokerHandEvaluator = await PokerHandEvaluator.deploy();
   });
 
-  function createCard(value, suit) {
-    return { value, suit };
-  }
+  const getValue = (card) => ((card - 1) % 13) + 2;
+  const getSuit = (card) => Math.floor((card - 1) / 13);
 
+  function createCard(value, suit) {
+    const card = (suit * 13) + value - 1; // Cards are in the range 1-52
+    if (getValue(card) !== value) throw new Error("Card value wrong");
+    if (getSuit(card) !== suit) throw new Error("Card suit wrong");
+    return card;
+  }
+  
   describe("evaluateBestHand", function () {
     it("should correctly identify a Royal Flush", async function () {
       const hand = [

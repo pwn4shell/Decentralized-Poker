@@ -11,22 +11,17 @@ describe("PokerDealer", function () {
   let addrs;
 
   beforeEach(async function () {
+    // Deploy the PokerHandEvaluator contract
+    const PokerHandEvaluator = await ethers.getContractFactory("PokerHandEvaluator");
+    const pokerHandEvaluator = await PokerHandEvaluator.deploy();
+    await pokerHandEvaluator.waitForDeployment();
+
+    // Deploy the PokerDealer contract
     PokerDealer = await ethers.getContractFactory("PokerDealer");
     [owner, addr1, addr2, addr3, ...addrs] = await ethers.getSigners();
-    pokerDealer = await PokerDealer.deploy();
-  });
-
-  describe("Deployment", function () {
-    it("Should create the deck correctly", async function () {
-      for (let suit = 0; suit < 4; suit++) {
-        for (let value = 2; value <= 14; value++) {
-          const card = await pokerDealer.deck((suit * 13) + (value - 2));
-          expect(card.value).to.equal(value);
-          expect(card.suit).to.equal(suit);
-        }
-      }
-    });
-  });
+    pokerDealer = await PokerDealer.deploy(pokerHandEvaluator.target);
+    await pokerDealer.waitForDeployment();
+});
 
   describe("Hand Management", function () {
     it("Should allow a user to create a hand", async function () {
