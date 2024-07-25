@@ -1,107 +1,135 @@
-
 # ODP - Open Decentralized Poker
 
-Welcome to ODP The Open Decentralized Poker Project! This project aims to create a fully decentralized p2p poker game using EVM smart contracts and cryptography to ensure fairness and security. Below you will find a detailed overview of the different components of the project.
+## Table of Contents
+- [Introduction](#introduction)
+- [Project Overview](#project-overview)
+- [Project Structure](#project-structure)
+  - [Smart Contracts](#smart-contracts)
+  - [Frontend](#frontend)
+- [Getting Started](#getting-started)
+- [Testing](#testing)
+- [Challenges and Solutions](#challenges-and-solutions)
+- [Contributing](#contributing)
+- [Legal Disclaimer](#legal-disclaimer)
+- [Resources and Links](#resources-and-links)
+
+## Introduction
+
+Welcome to ODP - The Open Decentralized Poker Project! Our goal is to create the first fully decentralized peer-to-peer poker game using EVM smart contracts and cryptography. This project aims to ensure fairness and security in online poker through blockchain technology.
+
+## Project Overview
+
+ODP is a technically challenging project due to the computational constraints of Web3 backends and the complexity of dealing cards privately in a trustless, permissionless environment. Our solution leverages the transparency of blockchain transactions while maintaining the necessary privacy for a fair poker game.
 
 ## Project Structure
 
-### Contracts
+### Smart Contracts
 
-#### `contracts/PokerHandSolver.sol`
+1. **PokerHandSolver.sol**
+   - Compares poker hands to determine the winner
+   - Evaluates hand strength and ranks hands
 
-This contract is responsible for comparing poker hands to determine the winner. It contains the logic to evaluate the strength of different poker hands and find out which one is the strongest.
+2. **PokerChips.sol**
+   - Implements an ERC20 token for in-game currency
+   - Handles 1:1 deposits and withdrawals with USDC
+   - Both PokerChips and USDC use 6 decimal places
 
-#### `contracts/PokerChips.sol`
+3. **PokerDealer.sol** (In Development)
+   - Manages random, private card distribution
+   - Ensures on-chain verifiability of card dealing
+   - Implements a solution for trustless card dealing (see [Challenges and Solutions](#challenges-and-solutions))
 
-This contract implements an ERC20 token named "PokerChips" used in the game. Players use PokerChips to place bets, and winnings are paid out in PokerChips. It accepts 1:1 deposits in USDC and mints new tokens. Users can withdraw back to USDC by calling the withdraw function. Note both the PokerChips token and USDC have 6 decimals.
+4. **PokerGame.sol** (In Development)
+   - Contains core game logic (betting rounds, community card dealing)
+   - Manages game flow and rule enforcement
 
-#### `contracts/PokerDealer.sol` (2do)
-
-The Poker Dealer contract/system handles the generation of random, private card distribution. The cards are dealt in a way that needs to be verifiable on-chain, ensuring fairness. At the end of the game, all players reveal their keys to decode their hands, allowing all parties to see the cards.
-
-Every user needs to hold private information, their hole cards which are numerical values. These then need to be revealed at the end of the hand to all parties. The hole cards must be delivered randomly from a "deck" and must not match other users hole cards. Computation can not be done via shared computer as this would reveal the hole cards to all parties as soon as they are dealt.
-
-Solution 1:
-One way to do this is with a 3rd party or oracle acting as the dealer. They are responsible for shuffling and dealing the cards. A private key is shared via the UI and is used to encrypt the hole cards when they are dealt to each user. At the end of the game each users hole cards are decrypted and revealed. This however relies on a trusted 3rd party which doesn't improve significantly on existing web2 poker apps.
-
-A demo of this solution is in scripts/dealer.js and scripts/dealer-client.js
-
-Solution 2:
-Each player generates a private key and signs a message agreeing to a future block number from which a unique ID using the block hash is generated, this is distributed along with the matching public key to all players. All players must combine their private key with the block hash to generate randomness which can be used to shuffle the deck and distribute two cards. At the end of the hand each users private key is shared and verified that it a) signed the initial agreement & b) matches the hole cards when combined with the agreement. The downside of this solution is that two players could have the same hole cards.
-
-A demo of this solution is in scripts/hash-shuffle.js
-
-This is also what I based the PokerDealer.sol smart contract on.
-A private key is generated at random, then we use keccak to hash it and use this as a 32 byte public key. This combines with the future block hash to shuffle the deck.
-
-Solution 3:
-Open to suggestions?
-
-#### `contracts/PokerGame.sol` (2do)
-
-This contract contains the core logic for the poker game, including the betting rounds and dealing of the community cards (flop, turn, river). It manages the flow of the game and ensures that all rules are followed correctly.
-
-#### `contracts/Casino.sol` (2do)
-
-The Casino contract encompasses the broader logic of the game, including funding player accounts, joining games, and other administrative tasks necessary for the smooth operation of the poker client.
+5. **Casino.sol** (In Development)
+   - Handles broader game logistics (account funding, game joining)
+   - Manages administrative tasks for smooth operation
 
 ### Frontend
 
-#### dApp Client
-
-The frontend client should provide a interface which brings the game to the end user. We have access to a web2 frontend which could be modified to use the smart contracts on the backend. There's still fundamental work to be done on the contracts and dealing mechanism before starting on the UI.
-
-## Unit Tests
-
-Unit tests are written in Hardhat and can be found in the `test/` directory. These tests attempt to ensure that all the contracts function as expected and adhere to the defined rules and logic of the game.
-
-Feel free to add more tests and put in a pull request ♥️
+- **dApp Client** (Future Development)
+  - Will provide a user-friendly interface for the game
+  - To be developed after finalizing core contract functionality
 
 ## Getting Started
 
-To get started with the Decentralized Poker Client, follow these steps:
+To set up the ODP project locally:
 
-1. **Clone the repository:**
+1. Clone the repository:
+   ```bash
+   git clone https://github.com/your-repo/open-decentralized-poker.git
+   cd open-decentralized-poker
+   ```
 
-    ```bash
-    git clone https://github.com/your-repo/decentralized-poker-client.git
-    cd decentralized-poker-client
-    ```
+2. Install dependencies:
+   ```bash
+   npm install
+   ```
 
-2. **Install dependencies:**
+3. Compile the smart contracts:
+   ```bash
+   npx hardhat compile
+   ```
 
-    ```bash
-    npm install
-    ```
+## Testing
 
-3. **Compile the contracts:**
+Run the test suite to ensure all contracts function as expected:
 
-    ```bash
-    npx hardhat compile
-    ```
+```bash
+npx hardhat test
+```
 
-4. **Run the tests:**
+We encourage contributors to add more tests and submit pull requests to improve code coverage and reliability.
 
-    ```bash
-    npx hardhat test
-    ```
+## Challenges and Solutions
+
+One of the main challenges in decentralized poker is dealing cards privately while ensuring fairness. We've explored several solutions:
+
+1. **Third-party Dealer (Oracle)**
+   - Pros: Simpler implementation
+   - Cons: Relies on a trusted third party
+   - Demo in scripts/dealer.js and dealer-client.js
+
+2. **Player-generated Randomness**
+   - Current implementation in `PokerDealer.sol`
+   - Uses a combination of player-generated keys and future block hashes
+   - Pros: Fully decentralized
+   - Cons: Potential for duplicate hole cards
+
+3. **Alternative Solutions**
+   - We're open to suggestions for improving the card dealing mechanism
+
+## Contributing
+
+We welcome contributions to the ODP project! Here's how you can help:
+
+1. Fork the repository
+2. Create a new branch for your feature or bug fix
+3. Commit your changes and push to your fork
+4. Submit a pull request with a clear description of your changes
+
+Please ensure your code adheres to the project's coding standards and includes appropriate tests.
 
 ## Legal Disclaimer
-This software is intended for educational and experimentation purposes only. The use of this software to facilitate real money gambling may be illegal in your jurisdiction. You are solely responsible for ensuring that your use of this software complies with all applicable local, national, and international laws.
 
-Online gambling is heavily regulated or banned in many jurisdictions. You must check with your local legislation before using this software. This software is provided "as is", without warranty of any kind, express or implied. The developers and contributors of this software shall not be held liable for any damages arising from the use of this software. This software is not fit for production use. It is intended solely for research and educational purposes.By using this software, you acknowledge and agree that you are responsible for complying with all applicable laws and regulations. The contributors to this open source software disclaim all liability for any use of this software in violation of regional law or regulation around the world.
+This software is intended for educational and experimental purposes only. The use of this software for real money gambling may be illegal in your jurisdiction. Users are solely responsible for ensuring compliance with all applicable laws and regulations.
 
-## Links
+Online gambling is heavily regulated or prohibited in many areas. This software is provided "as is" without any warranties. The developers and contributors shall not be held liable for any damages arising from its use.
 
-For more information, tutorials, and updates, check out the following links:
+By using this software, you acknowledge that you understand and accept these terms.
 
-- [James Bachini Blog](https://jamesbachini.com)
-- [James Bachini YouTube Channel](https://www.youtube.com/c/JamesBachini?sub_confirmation=1)
-- [James Bachini on Substack](https://bachini.substack.com)
-- [James Bachini Podcast on Spotify](https://podcasters.spotify.com/pod/show/jamesbachini)
-- [James Bachini on Spotify](https://open.spotify.com/show/2N0D9nvdxoe9rY3jxE4nOZ)
-- [James Bachini on Twitter](https://twitter.com/james_bachini)
-- [James Bachini on LinkedIn](https://www.linkedin.com/in/james-bachini/)
-- [James Bachini on GitHub](https://github.com/jamesbachini)
+## Resources and Links
 
-We hope you enjoy using the Decentralized Poker Client! If you have any questions or feedback, feel free to reach out through any of the links above.
+For more information, tutorials, and updates, check out these resources:
+
+- [James Bachini's Blog](https://jamesbachini.com)
+- [YouTube Channel](https://www.youtube.com/c/JamesBachini?sub_confirmation=1)
+- [Substack Newsletter](https://bachini.substack.com)
+- [Podcast on Spotify](https://podcasters.spotify.com/pod/show/jamesbachini)
+- [Twitter](https://twitter.com/james_bachini)
+- [LinkedIn](https://www.linkedin.com/in/james-bachini/)
+- [GitHub](https://github.com/jamesbachini)
+
+We appreciate your interest in the Open Decentralized Poker project. For questions, feedback, or contributions, please reach out through any of the channels above.

@@ -1,6 +1,8 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.0;
 
+import "hardhat/console.sol";
+
 interface IPokerHandEvaluator {
     function compareHands(uint8[7] memory hand1, uint8[7] memory hand2) external pure returns (int8);
 }
@@ -11,7 +13,6 @@ contract PokerDealer {
         address dealer;
         address winner;
         uint8 maxPlayers;
-        uint256 ante;
         uint256 blockNumber;
         address[] playerAddresses;
         mapping(address => uint8) card1;
@@ -51,7 +52,7 @@ contract PokerDealer {
         }
     }
 
-    function createHand(bytes32 _handPublicKey, uint8 _maxPlayers) public payable returns (uint256) {
+    function createHand(bytes32 _handPublicKey, uint8 _maxPlayers) public returns (uint256) {
         require(_maxPlayers >= 2, "Increase maxPlayers");
         require(_handPublicKey != 0x0, "Invalid key");
         handCount++;
@@ -59,7 +60,6 @@ contract PokerDealer {
         newHand.dealer = msg.sender;
         newHand.winner = address(0);
         newHand.maxPlayers = _maxPlayers;
-        newHand.ante = msg.value;
         newHand.blockNumber = 0;
         newHand.playerAddresses.push(msg.sender);
         newHand.handPublicKey[msg.sender] = _handPublicKey;
@@ -67,11 +67,10 @@ contract PokerDealer {
         return handCount;
     }
 
-    function joinHand(uint256 _handId, bytes32 _handPublicKey) public payable {
+    function joinHand(uint256 _handId, bytes32 _handPublicKey) public {
         Hand storage hand = hands[_handId];
         require(_handPublicKey != 0x0, "Invalid key");
         require(hand.dealer != address(0), "Hand does not exist");
-        require(msg.value == hand.ante, "Incorrect ante amount");
         require(hand.playerAddresses.length < hand.maxPlayers, "Hand is full");
         require(hand.handPublicKey[msg.sender] == 0x0, "Player already joined");
         hand.playerAddresses.push(msg.sender);
@@ -229,5 +228,9 @@ contract PokerDealer {
 
     function getRiver(uint256 handId) public view returns (uint8) {
         return hands[handId].river;
+    }
+
+    function getHash(uint256 handId) public view returns (bytes32) {
+        return blockhash(hands[handId].blockNumber);
     }
 }
