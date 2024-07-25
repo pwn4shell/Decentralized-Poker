@@ -31,6 +31,9 @@ Each player generates a private key and signs a message agreeing to a future blo
 
 A demo of this solution is in scripts/hash-shuffle.js
 
+This is also what I based the PokerDealer.sol smart contract on.
+A private key is generated at random, then we use keccak to hash it and use this as a 32 byte public key. This combines with the future block hash to shuffle the deck.
+
 Solution 3:
 Open to suggestions?
 

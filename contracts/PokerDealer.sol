@@ -44,6 +44,8 @@ contract PokerDealer {
     }
 
     function createHand(bytes32 _handPublicKey, uint8 _maxPlayers) public payable returns (uint256) {
+        require(_maxPlayers >= 2, "Increase maxPlayers");
+        require(_handPublicKey != 0x0, "Invalid key");
         handCount++;
         Hand storage newHand = hands[handCount];
         newHand.dealer = msg.sender;
@@ -59,8 +61,9 @@ contract PokerDealer {
 
     function joinHand(uint256 _handId, bytes32 _handPublicKey) public payable {
         Hand storage hand = hands[_handId];
-        require(msg.value == hand.ante, "Incorrect ante amount");
+        require(_handPublicKey != 0x0, "Invalid key");
         require(hand.dealer != address(0), "Hand does not exist");
+        require(msg.value == hand.ante, "Incorrect ante amount");
         require(hand.playerAddresses.length < hand.maxPlayers, "Hand is full");
         require(hand.handPublicKey[msg.sender] == 0x0, "Player already joined");
         hand.playerAddresses.push(msg.sender);
