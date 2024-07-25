@@ -24,8 +24,12 @@ Every user needs to hold private information, their hole cards which are numeric
 Solution 1:
 One way to do this is with a 3rd party or oracle acting as the dealer. They are responsible for shuffling and dealing the cards. A private key is shared via the UI and is used to encrypt the hole cards when they are dealt to each user. At the end of the game each users hole cards are decrypted and revealed. This however relies on a trusted 3rd party which doesn't improve significantly on existing web2 poker apps.
 
+A demo of this solution is in scripts/dealer.js and scripts/dealer-client.js
+
 Solution 2:
-Each player generates a private key and signs a message agreeing to a future block number from which a unique ID using the block hash is generated, this is distributed to all players. All players must combine their private key with the block hash to generate randomness which can be used to shuffle the deck and distribute two cards. At the end of the hand each users private key is shared and verified that it a) signed the initial agreement & b) matches the hole cards when combined with the agreement. The downside of this solution is that two players could have the same hole cards.
+Each player generates a private key and signs a message agreeing to a future block number from which a unique ID using the block hash is generated, this is distributed along with the matching public key to all players. All players must combine their private key with the block hash to generate randomness which can be used to shuffle the deck and distribute two cards. At the end of the hand each users private key is shared and verified that it a) signed the initial agreement & b) matches the hole cards when combined with the agreement. The downside of this solution is that two players could have the same hole cards.
+
+A demo of this solution is in scripts/hash-shuffle.js
 
 Solution 3:
 Open to suggestions?
