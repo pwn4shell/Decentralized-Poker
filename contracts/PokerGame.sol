@@ -1,6 +1,8 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.0;
 
+import "hardhat/console.sol";
+
 interface IPokerHandEvaluator {
     function compareHands(uint8[7] memory hand1, uint8[7] memory hand2) external pure returns (uint8);
     function evaluateHand(uint8[7] memory hand) external pure returns (uint8);
@@ -13,9 +15,8 @@ interface IPokerChips {
 }
 
 interface IPokerDealer {
-    function createHand(bytes32 handPublicKey, uint8 maxPlayers) external returns (uint);
-    function joinHand(uint gid, bytes32 handPublicKey) external;
-    function closeHand(uint gid, bytes32 privateKey) external;
+    function createHand(uint _gid, address[] memory _players, bytes32[] memory _publicKeys) external returns (uint);
+    function closeHand(uint _gid, uint _hid, address _player, bytes32 _privateKey) external;
     function getPrivateKey(uint gid, address player) external view returns (bytes32);
     function getFlop(uint gid) external view returns (uint8, uint8, uint8);
     function getTurn(uint gid) external view returns (uint8);
@@ -38,14 +39,15 @@ contract PokerGame {
 
     struct Game {
         GameState state;
+        uint hid;
         uint8 maxPlayers;
         uint8 activePlayers;
         uint pot;
         uint currentBet;
         uint smallBlind;
         uint bigBlind;
-        uint8 dealerPosition;
-        uint8 currentPlayerTurn;
+        uint8 dealerSeat;
+        uint8 actionOnSeat;
         mapping(uint8 => Player) players;
         uint lastActionTime;
         uint[] hands;
@@ -63,7 +65,8 @@ contract PokerGame {
 
     event GameCreated(uint indexed gid, uint8 maxPlayers, uint smallBlind, uint bigBlind);
     event PlayerJoined(uint indexed gid, address player, uint8 seatIndex);
-    event NewRound(uint indexed gid, uint indexed hid);
+    event NewHand(uint indexed gid, uint indexed hid, address[] players, bytes32[] handPublicKeys);
+    event NewRound(uint indexed gid, GameState state);
     event Action(uint indexed gid, address player, PlayerAction action, uint amount);
     event CommunityCardsDealt(uint indexed gid, uint8 flop1, uint8 flop2, uint8 flop3, uint8 turn, uint8 river);
     event PotAwarded(uint indexed gid, address winner, uint amount);
@@ -94,7 +97,6 @@ contract PokerGame {
         require(game.players[_seatIndex].addr == address(0), "Seat is already taken");
         require(game.activePlayers < game.maxPlayers, "Game is full");
         uint buyIn = game.bigBlind * 100;
-        require(pokerChips.balanceOf(msg.sender) >= buyIn, "Insufficient chips for buy-in");
         pokerChips.transferFrom(msg.sender, address(this), buyIn);
         game.players[_seatIndex] = Player({
             addr: msg.sender,
@@ -108,34 +110,52 @@ contract PokerGame {
         emit PlayerJoined(_gid, msg.sender, _seatIndex);
     }
 
+    function getNextActiveSeat(Game storage _game, uint8 _startSeat) internal view returns (uint8) {
+        uint8 seat = _startSeat;
+        do {
+            seat = (seat + 1) % _game.maxPlayers;
+        } while (_game.players[seat].addr == address(0));
+        return seat;
+    }
+
     function dealHand(uint _gid) external {
         Game storage game = games[_gid];
         require(game.state == GameState.Waiting, "Game is not in waiting state");
         require(game.activePlayers >= 2, "Not enough players to start the game");
         game.state = GameState.PreFlop;
-        game.dealerPosition = (game.dealerPosition + 1) % game.activePlayers;
-        game.currentPlayerTurn = (game.dealerPosition + 3) % game.activePlayers;
-        uint8 smallBlindPos = (game.dealerPosition + 1) % game.activePlayers;
-        uint8 bigBlindPos = (game.dealerPosition + 2) % game.activePlayers;
-        postBlind(_gid, smallBlindPos, game.smallBlind);
-        postBlind(_gid, bigBlindPos, game.bigBlind);
+        game.dealerSeat = getNextActiveSeat(game, game.dealerSeat);
+        game.actionOnSeat = getNextActiveSeat(game, game.dealerSeat);
+        game.actionOnSeat = getNextActiveSeat(game, game.actionOnSeat);
+        game.actionOnSeat = getNextActiveSeat(game, game.actionOnSeat);
+        uint8 smallBlindSeat = getNextActiveSeat(game, game.dealerSeat);
+        uint8 bigBlindSeat = getNextActiveSeat(game, smallBlindSeat);
+        if (game.activePlayers == 2) { // Heads-up play
+            smallBlindSeat = game.dealerSeat;
+            bigBlindSeat = getNextActiveSeat(game, game.dealerSeat);
+            game.actionOnSeat = bigBlindSeat;
+        }
+        postBlind(_gid, smallBlindSeat, game.smallBlind);
+        postBlind(_gid, bigBlindSeat, game.bigBlind);
         game.currentBet = game.bigBlind;
         game.lastActionTime = block.timestamp;
-        bytes32 dealerKey = game.players[game.dealerPosition].handPublicKey;
-        uint hid = pokerDealer.createHand(dealerKey, game.activePlayers);
-        game.hands.push(hid);
+        address[] memory playerAddresses = new address[](game.activePlayers);
+        bytes32[] memory handPublicKeys = new bytes32[](game.activePlayers);
+        uint8 count = 0;
         for (uint8 i = 0; i < game.maxPlayers; i++) {
-            Player storage player = game.players[i];
-            if (player.addr != address(0) && player.handPublicKey != dealerKey) { // security - can another user duplicate the dealerKey
-                pokerDealer.joinHand(hid, player.handPublicKey);
-            }
+            uint8 seatIndex = (game.dealerSeat + i) % game.maxPlayers;
+            if (game.players[seatIndex].addr == address(0) || game.players[seatIndex].handPublicKey == 0x0) continue;
+            playerAddresses[count] = game.players[seatIndex].addr;
+            handPublicKeys[count] = game.players[seatIndex].handPublicKey;
+            count++;
         }
-        emit NewRound(_gid, hid);
+        game.hid = pokerDealer.createHand(_gid, playerAddresses, handPublicKeys);
+        game.hands.push(game.hid);
+        emit NewHand(_gid, game.hid, playerAddresses, handPublicKeys);
     }
 
-    function postBlind(uint _gid, uint8 _playerPosition, uint _blindAmount) internal {
+    function postBlind(uint _gid, uint8 _seat, uint _blindAmount) internal {
         Game storage game = games[_gid];
-        Player storage player = game.players[_playerPosition];
+        Player storage player = game.players[_seat];
         require(player.chips >= _blindAmount, "Player doesn't have enough chips for blind");
         player.chips -= _blindAmount;
         player.currentBet = _blindAmount;
@@ -144,11 +164,11 @@ contract PokerGame {
 
     function playerAction(uint _gid, PlayerAction _action, uint _amount) external {
         Game storage game = games[_gid];
-        Player storage currentPlayer = game.players[game.currentPlayerTurn];
+        Player storage currentPlayer = game.players[game.actionOnSeat];
         require(game.state != GameState.Waiting, "Game hasn't started yet");
         require(currentPlayer.addr == msg.sender, "It's not your turn");
         require(!currentPlayer.hasFolded, "You have already folded");
-        require(block.timestamp <= game.lastActionTime + ACTION_TIMEOUT, "Action timeout, please call nextPlayer");
+        //require(block.timestamp <= game.lastActionTime + ACTION_TIMEOUT, "Action timeout, please call nextPlayer");
 
         if (_action == PlayerAction.Fold) {
             currentPlayer.hasFolded = true;
@@ -175,17 +195,16 @@ contract PokerGame {
         nextPlayer(_gid);
     }
 
-    function nextPlayer(uint _gid) public {
+    function nextPlayer(uint _gid) internal {
         Game storage game = games[_gid];
         require(game.state != GameState.Waiting, "Game hasn't started yet");
         do {
-            game.currentPlayerTurn = (game.currentPlayerTurn + 1) % game.maxPlayers;
-        } while (game.players[game.currentPlayerTurn].hasFolded || game.players[game.currentPlayerTurn].addr == address(0));
+            game.actionOnSeat = getNextActiveSeat(game, game.actionOnSeat);
+        } while (game.players[game.actionOnSeat].hasFolded);
         if (isRoundComplete(game)) {
             advanceToNextRound(_gid);
-        } else {
-            game.lastActionTime = block.timestamp;
         }
+        game.lastActionTime = block.timestamp;
     }
 
     function isRoundComplete(Game storage game) internal view returns (bool) {
@@ -217,8 +236,14 @@ contract PokerGame {
                 return;
             }
             resetBets(game);
-            game.currentPlayerTurn = (game.dealerPosition + 1) % game.maxPlayers;
-            game.lastActionTime = block.timestamp;
+            game.actionOnSeat = getNextActiveSeat(game, game.dealerSeat);
+            if (game.activePlayers == 2 && 
+                (game.state == GameState.Flop || 
+                game.state == GameState.Turn || 
+                game.state == GameState.River)
+            ) {
+                game.actionOnSeat = game.dealerSeat; // heads up play
+            }
             emit NewRound(_gid, game.state);
         }
     }
@@ -242,7 +267,7 @@ contract PokerGame {
         for (uint8 i = 0; i < game.maxPlayers; i++) {
             Player storage player = game.players[i];
             if (player.addr == msg.sender) {
-                pokerDealer.closeHand(hid, _privateKey);
+                pokerDealer.closeHand(_gid, hid, msg.sender, _privateKey);
                 player.handPublicKey = _nextPublicKey;
                 revealed++;
             } else if (player.addr != address(0)) {
@@ -325,6 +350,18 @@ contract PokerGame {
                 player.hasActed = false;
             }
         }
+    }
+
+    function getHandId(uint _gid) external view returns (uint) {
+        return games[_gid].hid;
+    }
+
+    function getDealer(uint _gid) external view returns (address) {
+        return games[_gid].players[games[_gid].dealerSeat].addr;
+    }
+
+    function getAction(uint _gid) external view returns (address) {
+        return games[_gid].players[games[_gid].actionOnSeat].addr;
     }
 
 }

@@ -7,9 +7,9 @@ contract PokerDealer {
 
     struct Hand {
         address dealer;
-        uint8 maxPlayers;
+        uint gid;
         uint blockNumber;
-        address[] playerAddresses;
+        address[] players;
         mapping(address => uint8) card1;
         mapping(address => uint8) card2;
         mapping(address => uint8) card3;
@@ -32,9 +32,8 @@ contract PokerDealer {
     address public evaluator;
     uint8 nullCard = 0;
 
-    event HandCreated(uint handId, address dealer, bytes32 handPublicKey, uint8 maxPlayers);
-    event PlayerJoined(uint handId, address player, bytes32 handPublicKey);
-    event HandClosed(uint handId, address player, bytes32 privateKey);
+    event HandCreated(uint gid, uint hid, address[] players, bytes32[] publicKeys);
+    event HandClosed(uint gid,uint hid, address player, bytes32 privateKey);
 
     constructor() {
         createDeck();
@@ -46,30 +45,26 @@ contract PokerDealer {
         }
     }
 
-    function createHand(bytes32 _handPublicKey, uint8 _maxPlayers) public returns (uint) {
-        require(_maxPlayers >= 2, "Increase maxPlayers");
-        require(_handPublicKey != 0x0, "Invalid key");
+    function createHand(uint _gid, address[] memory _players, bytes32[] memory _publicKeys) public returns (uint) {
+        require(_players.length >= 2, "Increase players");
+        require(_players.length == _publicKeys.length, "Player, keys mismatch");
         handCount++;
         Hand storage newHand = hands[handCount];
-        newHand.dealer = msg.sender;
-        newHand.maxPlayers = _maxPlayers;
+        newHand.gid = _gid;
+        newHand.dealer = _players[0];
+        newHand.players = _players;
         newHand.blockNumber = 0;
-        newHand.playerAddresses.push(msg.sender);
-        newHand.handPublicKey[msg.sender] = _handPublicKey;
-        emit HandCreated(handCount, msg.sender, _handPublicKey, _maxPlayers);
+        for (uint i = 0; i < _players.length; i++) {
+            uint8 seen;
+            for (uint i2 = 0; i2 < _players.length; i2++) {
+                if (_players[i] == _players[i2]) seen ++;
+            }
+            require(seen == 1, "One entry per address");
+            require(_publicKeys[i] != 0x0, "Invalid public key");
+            newHand.handPublicKey[_players[i]] = _publicKeys[i];
+        }
+        emit HandCreated(_gid, handCount, _players, _publicKeys);
         return handCount;
-    }
-
-    function joinHand(uint _hid, bytes32 _handPublicKey) public {
-        Hand storage hand = hands[_hid];
-        require(_handPublicKey != 0x0, "Invalid key");
-        require(hand.dealer != address(0), "Hand does not exist");
-        require(hand.playerAddresses.length < hand.maxPlayers, "Hand is full");
-        require(hand.handPublicKey[msg.sender] == 0x0, "Player already joined");
-        hand.playerAddresses.push(msg.sender);
-        hand.handPublicKey[msg.sender] = _handPublicKey;
-        if (hand.playerAddresses.length == hand.maxPlayers) hand.blockNumber = block.number + 1;
-        emit PlayerJoined(_hid, msg.sender, _handPublicKey);
     }
 
     function flop(uint _hid, uint8 _card3 , uint8 _card4, uint8 _card5) public {
@@ -85,17 +80,17 @@ contract PokerDealer {
         hand.card4[msg.sender] = _card4;
         hand.card5[msg.sender] = _card5;
         bool allRevealed = true;
-        for (uint i = 0; i < hand.playerAddresses.length; i++) {
-            if (hand.card3[hand.playerAddresses[i]] == nullCard) {
+        for (uint i = 0; i < hand.players.length; i++) {
+            if (hand.card3[hand.players[i]] == nullCard) {
                 allRevealed = false;
                 break;
             }
         }
         if (allRevealed) {
-            for (uint i = 0; i < hand.playerAddresses.length; i++) {
-                hand.flop1 += hand.card3[hand.playerAddresses[i]];
-                hand.flop2 += hand.card4[hand.playerAddresses[i]];
-                hand.flop3 += hand.card5[hand.playerAddresses[i]];
+            for (uint i = 0; i < hand.players.length; i++) {
+                hand.flop1 += hand.card3[hand.players[i]];
+                hand.flop2 += hand.card4[hand.players[i]];
+                hand.flop3 += hand.card5[hand.players[i]];
             }
             hand.flop1 = uint8((hand.flop1 % 52) + 1);
             hand.flop2 = uint8((hand.flop2 % 52) + 1);
@@ -112,15 +107,15 @@ contract PokerDealer {
         require(_card6 != nullCard, "Invalid turn card");
         hand.card6[msg.sender] = _card6;
         bool allRevealed = true;
-        for (uint i = 0; i < hand.playerAddresses.length; i++) {
-            if (hand.card6[hand.playerAddresses[i]] == nullCard) {
+        for (uint i = 0; i < hand.players.length; i++) {
+            if (hand.card6[hand.players[i]] == nullCard) {
                 allRevealed = false;
                 break;
             }
         }
         if (allRevealed) {
-            for (uint i = 0; i < hand.playerAddresses.length; i++) {
-                hand.turn += hand.card6[hand.playerAddresses[i]];
+            for (uint i = 0; i < hand.players.length; i++) {
+                hand.turn += hand.card6[hand.players[i]];
             }
             hand.turn = uint8((hand.turn % 52) + 1);
         }
@@ -135,38 +130,38 @@ contract PokerDealer {
         require(_card7 != nullCard, "Invalid river card");
         hand.card7[msg.sender] = _card7;
         bool allRevealed = true;
-        for (uint i = 0; i < hand.playerAddresses.length; i++) {
-            if (hand.card7[hand.playerAddresses[i]] == nullCard) {
+        for (uint i = 0; i < hand.players.length; i++) {
+            if (hand.card7[hand.players[i]] == nullCard) {
                 allRevealed = false;
                 break;
             }
         }
         if (allRevealed) {
-            for (uint i = 0; i < hand.playerAddresses.length; i++) {
-                hand.river += hand.card7[hand.playerAddresses[i]];
+            for (uint i = 0; i < hand.players.length; i++) {
+                hand.river += hand.card7[hand.players[i]];
             }
             hand.river = uint8((hand.river % 52) + 1);
         }
     }
 
-    function closeHand(uint _hid, bytes32 _privateKey) public {
+    function closeHand(uint _gid, uint _hid, address _player, bytes32 _privateKey) public {
         Hand storage hand = hands[_hid];
         require(hand.dealer != address(0), "Hand does not exist");
         require(block.number >= hand.blockNumber, "Too Soon");
-        require(hand.card7[msg.sender] != nullCard, "Cant close before turn");
-        require(hand.handPublicKey[msg.sender] != 0x0, "Player not found in hand");
-        require(hand.handPrivateKey[msg.sender] == 0x0, "Player already revealed");
-        require(keccak256(abi.encodePacked(_privateKey)) == hand.handPublicKey[msg.sender], "Invalid key");
-        hand.handPrivateKey[msg.sender] = _privateKey;
+        require(hand.card7[_player] != nullCard, "Cant close before turn");
+        require(hand.handPublicKey[_player] != 0x0, "Player not found in hand");
+        require(hand.handPrivateKey[_player] == 0x0, "Player already revealed");
+        require(keccak256(abi.encodePacked(_privateKey)) == hand.handPublicKey[_player], "Invalid key");
+        hand.handPrivateKey[_player] = _privateKey;
         uint8[7] memory dealtCards = shuffleAndDeal(blockhash(hand.blockNumber), _privateKey);
-        hand.card1[msg.sender] = dealtCards[0];
-        hand.card2[msg.sender] = dealtCards[1];
-        require(dealtCards[2] == hand.card3[msg.sender], "Invalid card 3");
-        require(dealtCards[3] == hand.card4[msg.sender], "Invalid card 4");
-        require(dealtCards[4] == hand.card5[msg.sender], "Invalid card 5");
-        require(dealtCards[5] == hand.card6[msg.sender], "Invalid card 6");
-        require(dealtCards[6] == hand.card7[msg.sender], "Invalid card 7");
-        emit HandClosed(_hid, msg.sender, _privateKey);
+        hand.card1[_player] = dealtCards[0];
+        hand.card2[_player] = dealtCards[1];
+        require(dealtCards[2] == hand.card3[_player], "Invalid card 3");
+        require(dealtCards[3] == hand.card4[_player], "Invalid card 4");
+        require(dealtCards[4] == hand.card5[_player], "Invalid card 5");
+        require(dealtCards[5] == hand.card6[_player], "Invalid card 6");
+        require(dealtCards[6] == hand.card7[_player], "Invalid card 7");
+        emit HandClosed(_gid, _hid, _player, _privateKey);
     }
 
     function shuffleDeck(bytes32 hash) public view returns (uint8[52] memory) {
@@ -187,11 +182,11 @@ contract PokerDealer {
     }
 
     function getPlayersInHand(uint _hid) public view returns (address[] memory) {
-        return hands[_hid].playerAddresses;
+        return hands[_hid].players;
     }
 
-    function getHand(uint _hid) public view returns (address, uint8, uint) {
-        return (hands[_hid].dealer, hands[_hid].maxPlayers, hands[_hid].blockNumber);
+    function getHand(uint _hid) public view returns (address, uint, address[] memory) {
+        return (hands[_hid].dealer, hands[_hid].blockNumber, hands[_hid].players);
     }
 
     function getFlop(uint _hid) public view returns (uint8, uint8, uint8) {

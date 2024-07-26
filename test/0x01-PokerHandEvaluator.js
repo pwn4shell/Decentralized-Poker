@@ -1,7 +1,7 @@
 const { expect } = require("chai");
 const { ethers } = require("hardhat");
 
-describe("PokerHandEvaluator", function () {
+describe("PokerHandEvaluator.sol", function () {
   let PokerHandEvaluator;
   let pokerHandEvaluator;
 

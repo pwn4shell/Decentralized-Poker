@@ -23,7 +23,7 @@ function shuffleAndDeal(blockHash, privateKey) {
   return shuffledDeck.slice(0, 7);
 }
 
-describe("PokerDealer", function () {
+describe("PokerDealer.sol", function () {
   let PokerDealer;
   let pokerDealer;
   let owner;
@@ -43,35 +43,22 @@ describe("PokerDealer", function () {
   describe("Hand Management", function () {
     it("Should allow a user to create a hand", async function () {
       const handPublicKey = ethers.encodeBytes32String("publicKey1");
-      await expect(pokerDealer.connect(owner).createHand(handPublicKey, 3))
-        .to.emit(pokerDealer, "HandCreated")
-        .withArgs(1, owner.address, handPublicKey, 3);
+      const addresses = [owner.address, addr1.address, addr2.address];
+      const pubKeys = [handPublicKey,handPublicKey,handPublicKey];
+      await expect(pokerDealer.connect(owner).createHand(1, addresses, pubKeys))
+        .to.emit(pokerDealer, "HandCreated");
       const hand = await pokerDealer.hands(1);
       expect(hand.dealer).to.equal(owner.address);
-      expect(hand.maxPlayers).to.equal(3);
-      expect(hand.blockNumber).to.equal(0);
     });
 
-    it("Should allow a player to join a hand", async function () {
-      const handPublicKey = ethers.encodeBytes32String("publicKey1");
-      await pokerDealer.connect(owner).createHand(handPublicKey, 3);
-      const handPublicKey2 = ethers.encodeBytes32String("publicKey2");
-      await expect(pokerDealer.connect(addr1).joinHand(1, handPublicKey2))
-        .to.emit(pokerDealer, "PlayerJoined")
-        .withArgs(1, addr1.address, handPublicKey2);
-
-      const players = await pokerDealer.getPlayersInHand(1);
-      expect(players).to.include(addr1.address);
-    });
-
-    it("Should close the hand when a player reveals their private key", async function () {
+    it("Should play through a heads up hand", async function () {
       const handPrivateKey1 = ethers.encodeBytes32String("secret1");
       const handPublicKey1 = ethers.keccak256(handPrivateKey1);
-      await pokerDealer.connect(owner).createHand(handPublicKey1, 2);
-      // Define Private/Public Key
       const handPrivateKey2 = ethers.encodeBytes32String("secret2");
       const handPublicKey2 = ethers.keccak256(handPrivateKey2);
-      await pokerDealer.connect(addr2).joinHand(1, handPublicKey2);
+      const addresses = [owner.address, addr2.address];
+      const pubKeys = [handPublicKey1,handPublicKey2];  
+      await pokerDealer.connect(owner).createHand(2, addresses, pubKeys);
       let handId = await pokerDealer.handCount();
       await ethers.provider.send("evm_mine", []);
       await ethers.provider.send("evm_mine", []);
@@ -84,24 +71,11 @@ describe("PokerDealer", function () {
       await pokerDealer.connect(addr2).turn(handId, cards2[5]);
       await pokerDealer.connect(owner).river(handId, cards1[6]);
       await pokerDealer.connect(addr2).river(handId, cards2[6]);
-      await pokerDealer.connect(owner).closeHand(handId, handPrivateKey1);
-      await expect(pokerDealer.connect(addr2).closeHand(handId, handPrivateKey2))
-        .to.emit(pokerDealer, "HandClosed")
-        .withArgs(1, addr2.address, handPrivateKey2);
+      await pokerDealer.connect(owner).closeHand(2, handId, owner.address, handPrivateKey1);
+      await expect(pokerDealer.connect(addr2).closeHand(2, handId, addr2.address, handPrivateKey2))
+        .to.emit(pokerDealer, "HandClosed");
         const handDetails = await pokerDealer.getHand(handId);
       expect(handDetails[0]).to.be.oneOf([owner.address, addr2.address]);
-    });
-
-    it("Should fail to join a hand if it is full", async function () {
-      const handPublicKey = ethers.encodeBytes32String("publicKey1");
-      await pokerDealer.connect(owner).createHand(handPublicKey, 3);
-      const handPublicKey2 = ethers.encodeBytes32String("publicKey2");
-      await pokerDealer.connect(addr1).joinHand(1, handPublicKey2);
-      const handPublicKey3 = ethers.encodeBytes32String("publicKey3");
-      await pokerDealer.connect(addr2).joinHand(1, handPublicKey3);
-      const handPublicKey4 = ethers.encodeBytes32String("publicKey4");
-      await expect(pokerDealer.connect(addr3).joinHand(1, handPublicKey4))
-        .to.be.revertedWith("Hand is full");
     });
   });
 
@@ -110,43 +84,41 @@ describe("PokerDealer", function () {
     it("Should prevent creating a hand with zero players", async function () {
       const handPublicKey = ethers.encodeBytes32String("publicKey1");
       await expect(
-        pokerDealer.connect(owner).createHand(handPublicKey, 0)
-      ).to.be.revertedWith("Increase maxPlayers");
+        pokerDealer.connect(owner).createHand(1, [], [])
+      ).to.be.revertedWith("Increase players");
     });
-
+  
     it("Should prevent a player from joining the same hand multiple times", async function () {
-      const handPublicKey = ethers.encodeBytes32String("publicKey1");
-      await pokerDealer.connect(owner).createHand(handPublicKey, 3);
+      const handPublicKey1 = ethers.encodeBytes32String("publicKey1");
       const handPublicKey2 = ethers.encodeBytes32String("publicKey2");
-      await pokerDealer.connect(addr1).joinHand(1, handPublicKey2);
+      const addresses = [owner.address, owner.address];
+      const pubKeys = [handPublicKey1, handPublicKey2];
       await expect(
-        pokerDealer.connect(addr1).joinHand(1, handPublicKey2)
-      ).to.be.revertedWith("Player already joined");
+        pokerDealer.connect(owner).createHand(1, addresses, pubKeys)
+      ).to.be.revertedWith("One entry per address");
     });
-
+  
     it("Should prevent joining a non-existent hand", async function () {
       const handPublicKey = ethers.encodeBytes32String("publicKey1");
       await expect(
-        pokerDealer.connect(addr1).joinHand(999, handPublicKey)
+        pokerDealer.connect(addr1).flop(999, 1, 2, 3)
       ).to.be.revertedWith("Hand does not exist");
     });
-
-
-
+  
     it("Should prevent revealing private key with invalid hash", async function () {
       const handPrivateKey1 = ethers.encodeBytes32String("secret1");
       const handPublicKey1 = ethers.keccak256(handPrivateKey1);
-      await pokerDealer.connect(owner).createHand(handPublicKey1, 2);
-      // Define Private/Public Key
       const handPrivateKey2 = ethers.encodeBytes32String("secret2");
       const handPublicKey2 = ethers.keccak256(handPrivateKey2);
-      await pokerDealer.connect(addr2).joinHand(1, handPublicKey2);
+      const addresses = [owner.address, addr2.address];
+      const pubKeys = [handPublicKey1, handPublicKey2];
+      await pokerDealer.connect(owner).createHand(1, addresses, pubKeys);
       let handId = await pokerDealer.handCount();
       await ethers.provider.send("evm_mine", []);
       await ethers.provider.send("evm_mine", []);
       const blockHash = await pokerDealer.getHash(handId.toString());
-      const cards1 = shuffleAndDeal(blockHash,handPrivateKey1);
-      const cards2 = shuffleAndDeal(blockHash,handPrivateKey2);
+      const cards1 = shuffleAndDeal(blockHash, handPrivateKey1);
+      const cards2 = shuffleAndDeal(blockHash, handPrivateKey2);
       await pokerDealer.connect(owner).flop(handId, cards1[2], cards1[3], cards1[4]);
       await pokerDealer.connect(addr2).flop(handId, cards2[2], cards2[3], cards2[4]);
       await pokerDealer.connect(owner).turn(handId, cards1[5]);
@@ -155,29 +127,25 @@ describe("PokerDealer", function () {
       await pokerDealer.connect(addr2).river(handId, cards2[6]);
       const invalidPrivateKey = ethers.encodeBytes32String("invalidPrivateKey");
       await expect(
-        pokerDealer.connect(addr2).closeHand(handId, invalidPrivateKey)
+        pokerDealer.connect(addr2).closeHand(1, handId, addr2.address, invalidPrivateKey)
       ).to.be.revertedWith("Invalid key");
     });
-
+  
     it("Should prevent closing a hand that doesn't exist", async function () {
       await expect(
-        pokerDealer.connect(addr1).closeHand(999, ethers.encodeBytes32String("privateKey"))
+        pokerDealer.connect(addr1).closeHand(1, 999, addr1.address, ethers.encodeBytes32String("privateKey"))
       ).to.be.revertedWith("Hand does not exist");
     });
-
-    it("Should prevent dealer from joining their own hand again", async function () {
-      const handPublicKey = ethers.encodeBytes32String("publicKey1");
-      await pokerDealer.connect(owner).createHand(handPublicKey, 3);
-      await expect(
-        pokerDealer.connect(owner).joinHand(1, handPublicKey)
-      ).to.be.revertedWith("Player already joined");
-    });
-
+  
     it("Should handle null public keys", async function () {
-      const invalidPublicKey = ethers.encodeBytes32String("");
+      const handPrivateKey1 = ethers.encodeBytes32String("secret1");
+      const handPublicKey1 = ethers.keccak256(handPrivateKey1);
+      const handPublicKey2 = ethers.encodeBytes32String('')
+      const addresses = [owner.address, addr2.address];
+      const pubKeys = [handPublicKey1, handPublicKey2];
       await expect(
-        pokerDealer.connect(owner).createHand(invalidPublicKey, 3)
-      ).to.be.revertedWith("Invalid key");
+        pokerDealer.connect(owner).createHand(1, addresses, pubKeys)
+      ).to.be.revertedWith("Invalid public key");
     });
   });
 
