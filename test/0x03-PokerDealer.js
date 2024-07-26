@@ -33,15 +33,10 @@ describe("PokerDealer", function () {
   let addrs;
 
   beforeEach(async function () {
-    // Deploy the PokerHandEvaluator contract
-    const PokerHandEvaluator = await ethers.getContractFactory("PokerHandEvaluator");
-    const pokerHandEvaluator = await PokerHandEvaluator.deploy();
-    await pokerHandEvaluator.waitForDeployment();
-
     // Deploy the PokerDealer contract
     PokerDealer = await ethers.getContractFactory("PokerDealer");
     [owner, addr1, addr2, addr3, ...addrs] = await ethers.getSigners();
-    pokerDealer = await PokerDealer.deploy(pokerHandEvaluator.target);
+    pokerDealer = await PokerDealer.deploy();
     await pokerDealer.waitForDeployment();
 });
 
@@ -93,8 +88,8 @@ describe("PokerDealer", function () {
       await expect(pokerDealer.connect(addr2).closeHand(handId, handPrivateKey2))
         .to.emit(pokerDealer, "HandClosed")
         .withArgs(1, addr2.address, handPrivateKey2);
-        const handDetails = await pokerDealer.getHandDetails(handId);
-      expect(handDetails[1]).to.be.gt(0);
+        const handDetails = await pokerDealer.getHand(handId);
+      expect(handDetails[0]).to.be.oneOf([owner.address, addr2.address]);
     });
 
     it("Should fail to join a hand if it is full", async function () {
@@ -181,7 +176,7 @@ describe("PokerDealer", function () {
     it("Should handle null public keys", async function () {
       const invalidPublicKey = ethers.encodeBytes32String("");
       await expect(
-        pokerDealer.connect(owner).createHand(invalidPublicKey, 3, { value: ethers.parseEther("1.0") })
+        pokerDealer.connect(owner).createHand(invalidPublicKey, 3)
       ).to.be.revertedWith("Invalid key");
     });
   });

@@ -9,7 +9,7 @@ contract PokerHandEvaluator {
         uint8[5] orderedValues;
     }
 
-    function compareHands(uint8[7] memory hand1, uint8[7] memory hand2) public pure returns (int8) {
+    function compareHands(uint8[7] memory hand1, uint8[7] memory hand2) public pure returns (uint8) {
         HandEvaluation memory eval1 = evaluateBestHand(hand1);
         HandEvaluation memory eval2 = evaluateBestHand(hand2);
 

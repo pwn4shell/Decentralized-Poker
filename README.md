@@ -25,7 +25,7 @@ ODP is a technically challenging project due to the computational constraints of
 
 ### Smart Contracts
 
-1. **PokerHandSolver.sol**
+1. **PokerHandEvaluator.sol**
    - Compares poker hands to determine the winner
    - Evaluates hand strength and ranks hands
 
@@ -34,18 +34,14 @@ ODP is a technically challenging project due to the computational constraints of
    - Handles 1:1 deposits and withdrawals with USDC
    - Both PokerChips and USDC use 6 decimal places
 
-3. **PokerDealer.sol** (In Development)
+3. **PokerDealer.sol**
    - Manages random, private card distribution
    - Ensures on-chain verifiability of card dealing
    - Implements a solution for trustless card dealing (see [Challenges and Solutions](#challenges-and-solutions))
 
-4. **PokerGame.sol** (In Development)
-   - Contains core game logic (betting rounds, community card dealing)
+4. **PokerGame.sol**
+   - Contains core game logic (betting rounds, blinds, dealer rotation)
    - Manages game flow and rule enforcement
-
-5. **Casino.sol** (In Development)
-   - Handles broader game logistics (account funding, game joining)
-   - Manages administrative tasks for smooth operation
 
 ### Frontend
 
@@ -95,11 +91,11 @@ One of the main challenges in decentralized poker is dealing cards privately whi
 2. **Player-generated Randomness**
    - Current implementation in `PokerDealer.sol`
    - Uses a combination of player-generated keys and future block hashes
-   - Pros: Fully decentralized
-   - Cons: Potential for duplicate hole cards
+   - Pros: Fully decentralized, trustless and permissionless
+   - Cons: Potential for duplicate hole cards and 6 of a kind
 
 3. **Alternative Solutions**
-   - We're open to suggestions for improving the card dealing mechanism
+   - Open to suggestions for improving the card dealing mechanism
 
 ## Contributing
 
